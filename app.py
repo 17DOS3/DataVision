@@ -3,25 +3,33 @@
 # DATAVISION - DATA ANALYTICS PLATFORM
 # ============================================
 
+# ============================================
+# IMPORTS
+# ============================================
+
 from io import BytesIO
+from datetime import datetime
 
 import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
+import matplotlib.pyplot as plt
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.units import mm
+
 from reportlab.platypus import (
     SimpleDocTemplate,
     Paragraph,
     Spacer,
     Table,
-    TableStyle
+    TableStyle,
+    Image
 )
-
-
 # ============================================
 # 1. PAGE CONFIGURATION
 # ============================================
@@ -416,70 +424,527 @@ def create_pdf_report(dataframe):
 
     document = SimpleDocTemplate(
         buffer,
-        pagesize=A4
+        pagesize=A4,
+        rightMargin=18 * mm,
+        leftMargin=18 * mm,
+        topMargin=20 * mm,
+        bottomMargin=20 * mm
     )
 
     styles = getSampleStyleSheet()
-
     elements = []
 
+    # COLORS
+    primary = colors.HexColor("#2563EB")
+    dark = colors.HexColor("#0F172A")
+    light = colors.HexColor("#EFF6FF")
+
+    # CUSTOM STYLES
+    title_style = ParagraphStyle(
+        "DataVisionTitle",
+        parent=styles["Title"],
+        textColor=primary,
+        fontSize=24,
+        alignment=TA_CENTER,
+        spaceAfter=8
+    )
+
+    subtitle_style = ParagraphStyle(
+        "Subtitle",
+        parent=styles["Normal"],
+        textColor=colors.HexColor("#64748B"),
+        alignment=TA_CENTER,
+        fontSize=10
+    )
+
+    heading_style = ParagraphStyle(
+        "SectionHeading",
+        parent=styles["Heading2"],
+        textColor=dark,
+        fontSize=14,
+        spaceBefore=14,
+        spaceAfter=8
+    )
+
+    # HEADER
     elements.append(
-        Paragraph("DataVision - Dataset Report", styles["Title"])
+        Paragraph("DataVision", title_style)
+    )
+
+    elements.append(
+        Paragraph(
+            "DATA ANALYSIS & QUALITY REPORT",
+            subtitle_style
+        )
     )
 
     elements.append(Spacer(1, 20))
 
     elements.append(
         Paragraph(
-            f"Total Rows: {dataframe.shape[0]}",
+            f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
             styles["Normal"]
         )
     )
 
+    # DATASET OVERVIEW
     elements.append(
-        Paragraph(
-            f"Total Columns: {dataframe.shape[1]}",
-            styles["Normal"]
-        )
+        Paragraph("1. Dataset Overview", heading_style)
     )
 
-    elements.append(
-        Paragraph(
-            f"Missing Values: {int(dataframe.isnull().sum().sum())}",
-            styles["Normal"]
-        )
+    total_rows = dataframe.shape[0]
+    total_columns = dataframe.shape[1]
+    total_cells = dataframe.size
+
+    missing_values = int(
+        dataframe.isnull().sum().sum()
     )
 
-    elements.append(
-        Paragraph(
-            f"Duplicates: {int(dataframe.duplicated().sum())}",
-            styles["Normal"]
-        )
+    duplicates = int(
+        dataframe.duplicated().sum()
     )
 
-    elements.append(Spacer(1, 20))
-
-    elements.append(
-        Paragraph("Statistical Summary", styles["Heading2"])
+    completeness = (
+        (total_cells - missing_values) / total_cells * 100
+        if total_cells > 0 else 0
     )
 
-    summary = dataframe.describe(include="all").fillna("-")
-
-    table_data = [
-        ["Statistic"] + [str(col)[:18] for col in summary.columns]
+    overview_data = [
+        ["Metric", "Value"],
+        ["Total Rows", f"{total_rows:,}"],
+        ["Total Columns", total_columns],
+        ["Missing Values", missing_values],
+        ["Duplicate Rows", duplicates],
+        ["Completeness", f"{completeness:.1f}%"]
     ]
 
-    for index, row in summary.iterrows():
+    overview_table = Table(
+        overview_data,
+        colWidths=[90 * mm, 75 * mm]
+    )
 
-        table_data.append(
-            [str(index)] + [str(value)[:18] for value in row.values]
+    overview_table.setStyle(
+        TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), primary),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("BACKGROUND", (0, 1), (-1, -1), light),
+            ("TEXTCOLOR", (0, 1), (-1, -1), dark),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.white),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("PADDING", (0, 0), (-1, -1), 8)
+        ])
+    )
+
+    elements.append(overview_table)
+
+        # VALIDITY ANALYSIS
+
+    validation_results = []
+
+    for col in dataframe.columns:
+
+        col_name = str(col).lower()
+        non_null = dataframe[col].dropna()
+
+        # Email validation
+        if "email" in col_name:
+
+            invalid_count = int(
+                (~non_null.astype(str).str.fullmatch(
+                    r"[^@\s]+@[^@\s]+\.[^@\s]+"
+                )).sum()
+            )
+
+            validation_results.append({
+                "Column": col,
+                "Validation Rule": "Valid email format",
+                "Invalid Values": invalid_count,
+                "Checked Values": len(non_null)
+            })
+
+        # Negative values in common non-negative fields
+        elif any(
+            word in col_name
+            for word in [
+                "age", "salary", "price",
+                "amount", "revenue", "quantity", "income"
+            ]
+        ) and pd.api.types.is_numeric_dtype(dataframe[col]):
+
+            invalid_count = int((non_null < 0).sum())
+
+            validation_results.append({
+                "Column": col,
+                "Validation Rule": "No negative values",
+                "Invalid Values": invalid_count,
+                "Checked Values": len(non_null)
+            })
+
+    if validation_results:
+
+        validation_df = pd.DataFrame(validation_results)
+
+        total_checked = int(
+            validation_df["Checked Values"].sum()
         )
 
-    table = Table(table_data, repeatRows=1)
+        total_invalid = int(
+            validation_df["Invalid Values"].sum()
+        )
 
-    table.setStyle(
+        validity = (
+            (total_checked - total_invalid) / total_checked * 100
+            if total_checked > 0 else None
+        )
+
+    else:
+        validation_df = pd.DataFrame()
+        validity = None
+
+    # DATA QUALITY
+
+    elements.append(
+        Paragraph("2. Data Quality Analysis", heading_style)
+    )
+
+    whitespace_issues = 0
+
+    for column in dataframe.select_dtypes(
+        include=["object", "string"]
+    ).columns:
+
+        values = dataframe[column].dropna().astype(str)
+
+        whitespace_issues += int(
+            values.ne(values.str.strip()).sum()
+        )
+
+    consistency_issues = duplicates + whitespace_issues
+
+    quality_data = [
+        ["Quality Metric", "Result"],
+        ["Completeness", f"{completeness:.1f}%"],
+        ["Validity", f"{validity:.1f}%" if validity is not None else "N/A"],
+        ["Missing Values", missing_values],
+        ["Duplicate Rows", duplicates],
+        ["Whitespace Issues", whitespace_issues],
+        ["Total Consistency Issues", consistency_issues]
+    ]
+
+    quality_table = Table(
+        quality_data,
+        colWidths=[90 * mm, 75 * mm]
+    )
+
+    quality_table.setStyle(
         TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2563EB")),
+            ("BACKGROUND", (0, 0), (-1, 0), primary),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("BACKGROUND", (0, 1), (-1, -1), light),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.white),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("PADDING", (0, 0), (-1, -1), 8)
+        ])
+    )
+
+    elements.append(quality_table)
+
+        # VALIDITY DETAILS TABLE
+
+    elements.append(
+        Spacer(1, 10)
+    )
+
+    elements.append(
+        Paragraph(
+            "Validity Details",
+            heading_style
+        )
+    )
+
+    if not validation_df.empty:
+
+        validity_data = [
+            [
+                "Column",
+                "Validation Rule",
+                "Checked",
+                "Invalid"
+            ]
+        ]
+
+        for _, row in validation_df.iterrows():
+
+            validity_data.append([
+                str(row["Column"]),
+                str(row["Validation Rule"]),
+                int(row["Checked Values"]),
+                int(row["Invalid Values"])
+            ])
+
+        validity_table = Table(
+            validity_data,
+            colWidths=[35 * mm, 65 * mm, 35 * mm, 35 * mm],
+            repeatRows=1
+        )
+
+        validity_table.setStyle(
+            TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), primary),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("PADDING", (0, 0), (-1, -1), 6),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE")
+            ])
+        )
+
+        elements.append(validity_table)
+
+    else:
+
+        elements.append(
+            Paragraph(
+                "No automatic validation rules were applicable.",
+                styles["Normal"]
+            )
+        )
+
+        # MISSING VALUES DATA
+
+    missing_by_column = dataframe.isnull().sum()
+
+    missing_by_column = missing_by_column[
+        missing_by_column > 0
+    ]
+    # MISSING VALUES CHART
+    
+    if not missing_by_column.empty:
+    
+        fig, ax = plt.subplots(figsize=(8, 3.5))
+
+        missing_by_column.sort_values().plot(
+            kind="barh",
+            ax=ax
+        )
+
+        ax.set_title("Missing Values by Column")
+        ax.set_xlabel("Number of Missing Values")
+        ax.set_ylabel("Columns")
+
+        fig.tight_layout()
+
+        chart_buffer = BytesIO()
+
+        fig.savefig(
+            chart_buffer,
+            format="png",
+            dpi=150,
+            bbox_inches="tight"
+        )
+
+        plt.close(fig)
+
+        chart_buffer.seek(0)
+
+        elements.append(
+            Spacer(1, 10)
+        )
+
+        elements.append(
+            Image(
+                chart_buffer,
+                width=160 * mm,
+                height=70 * mm
+            )
+        )
+
+    # DATA QUALITY CONCLUSION
+
+    elements.append(
+        Paragraph(
+            "Data Quality Conclusion",
+            heading_style
+        )
+    )
+
+    if completeness >= 95 and duplicates == 0 and whitespace_issues == 0:
+
+        conclusion = (
+            "The dataset shows a good level of data quality. "
+            "No major completeness or consistency issues were detected."
+        )
+
+    elif completeness >= 80:
+
+        conclusion = (
+            "The dataset has an acceptable level of completeness, "
+            "but some data quality issues should be reviewed."
+        )
+
+    else:
+
+        conclusion = (
+            "The dataset requires attention. Significant missing values "
+            "or consistency issues may affect the analysis."
+        )
+
+    elements.append(
+        Paragraph(
+            conclusion,
+            styles["Normal"]
+        )
+    )
+
+    elements.append(
+        Paragraph(
+            "Consistency issues count duplicate rows and text values "
+            "with leading or trailing whitespace. A row and a cell "
+            "can both contribute to this indicator.",
+            styles["Normal"]
+        )
+    )
+
+    # MISSING VALUES BY COLUMN
+    elements.append(
+        Paragraph("3. Missing Values by Column", heading_style)
+    )
+
+    missing_by_column = dataframe.isnull().sum()
+    missing_by_column = missing_by_column[
+        missing_by_column > 0
+    ].sort_values(ascending=False)
+
+    if not missing_by_column.empty:
+
+        missing_data = [
+            ["Column", "Missing Values", "Completeness"]
+        ]
+
+        for column, count in missing_by_column.head(20).items():
+
+            column_completeness = (
+                (total_rows - count) / total_rows * 100
+                if total_rows > 0 else 0
+            )
+
+            missing_data.append([
+                str(column)[:35],
+                int(count),
+                f"{column_completeness:.1f}%"
+            ])
+
+        missing_table = Table(
+            missing_data,
+            colWidths=[75 * mm, 45 * mm, 45 * mm]
+        )
+
+        missing_table.setStyle(
+            TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), primary),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("PADDING", (0, 0), (-1, -1), 6)
+            ])
+        )
+
+        elements.append(missing_table)
+
+        if len(missing_by_column) > 20:
+            elements.append(
+                Paragraph(
+                    "Only the first 20 columns with missing values are shown.",
+                    styles["Italic"]
+                )
+            )
+
+    else:
+
+        elements.append(
+            Paragraph(
+                "No missing values detected in this dataset.",
+                styles["Normal"]
+            )
+        )
+        # DATA TYPES DISTRIBUTION
+
+    elements.append(
+        Paragraph("4. Data Types Distribution", heading_style)
+    )
+
+    dtype_counts = (
+        dataframe.dtypes.astype(str)
+        .value_counts()
+    )
+
+    dtype_data = [
+        ["Data Type", "Number of Columns", "Percentage"]
+    ]
+
+    for dtype, count in dtype_counts.items():
+
+        percentage = (
+            count / total_columns * 100
+            if total_columns > 0 else 0
+        )
+
+        dtype_data.append([
+            str(dtype),
+            int(count),
+            f"{percentage:.1f}%"
+        ])
+
+    dtype_table = Table(
+        dtype_data,
+        colWidths=[65 * mm, 65 * mm, 35 * mm]
+    )
+
+    dtype_table.setStyle(
+        TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), primary),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("PADDING", (0, 0), (-1, -1), 7)
+        ])
+    )
+
+    elements.append(dtype_table)
+
+    # STATISTICAL SUMMARY
+    elements.append(
+        Paragraph("5. Statistical Summary", heading_style)
+    )
+
+    summary = dataframe.describe(
+        include="all"
+    ).T.fillna("-")
+
+    summary_data = [
+        ["Column", "Type", "Count", "Mean", "Std", "Min", "Max"]
+    ]
+
+    for column, row in summary.head(15).iterrows():
+
+        summary_data.append([
+            str(column)[:18],
+            str(dataframe[column].dtype),
+            str(row.get("count", "-"))[:12],
+            str(row.get("mean", "-"))[:12],
+            str(row.get("std", "-"))[:12],
+            str(row.get("min", "-"))[:12],
+            str(row.get("max", "-"))[:12]
+        ])
+
+    summary_table = Table(
+        summary_data,
+        repeatRows=1
+    )
+
+    summary_table.setStyle(
+        TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), primary),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
             ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
             ("FONTSIZE", (0, 0), (-1, -1), 7),
@@ -488,9 +953,56 @@ def create_pdf_report(dataframe):
         ])
     )
 
-    elements.append(table)
+    elements.append(summary_table)
 
-    document.build(elements)
+    if len(summary) > 15:
+        elements.append(
+            Paragraph(
+                "Statistical summary limited to the first 15 columns.",
+                styles["Italic"]
+            )
+        )
+
+    # FOOTER
+    def add_footer(canvas, doc):
+
+        canvas.saveState()
+
+        canvas.setStrokeColor(
+            colors.HexColor("#E2E8F0")
+        )
+
+        canvas.line(
+            18 * mm,
+            15 * mm,
+            192 * mm,
+            15 * mm
+        )
+
+        canvas.setFont("Helvetica", 8)
+        canvas.setFillColor(
+            colors.HexColor("#64748B")
+        )
+
+        canvas.drawString(
+            18 * mm,
+            10 * mm,
+            "DataVision | Data Analytics Platform"
+        )
+
+        canvas.drawRightString(
+            192 * mm,
+            10 * mm,
+            f"Page {doc.page}"
+        )
+
+        canvas.restoreState()
+
+    document.build(
+        elements,
+        onFirstPage=add_footer,
+        onLaterPages=add_footer
+    )
 
     buffer.seek(0)
 
@@ -523,7 +1035,8 @@ page = st.sidebar.radio(
         "Visualization",
         "Data Cleaning",
         "Data Quality",
-        "PDF Report"
+        "PDF Report",
+        "About"
     ],
     label_visibility="collapsed"
 )
@@ -584,12 +1097,11 @@ st.caption(
 
 st.divider()
 
-
 # ============================================
 # 7. CHECK DATASET
 # ============================================
 
-if st.session_state.df is None:
+if st.session_state.df is None and page != "About":
 
     st.info(
         "👈 Upload a CSV or Excel dataset from the sidebar to get started."
@@ -778,78 +1290,6 @@ if page == "Dashboard":
     )
 
     st.divider()
-
-    st.subheader("Dataset Preview")
-
-    st.dataframe(
-        df.head(10),
-        use_container_width=True
-    )
-
-    st.divider()
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-
-        st.subheader("Data Types")
-
-        type_counts = (
-            df.dtypes.astype(str)
-            .value_counts()
-            .reset_index()
-        )
-
-        type_counts.columns = ["Data Type", "Count"]
-
-        fig = px.pie(
-            type_counts,
-            names="Data Type",
-            values="Count",
-            title="Column Data Types",
-            color_discrete_sequence=[
-                "#2563EB",
-                "#60A5FA",
-                "#93C5FD",
-                "#1D4ED8"
-            ]
-        )
-
-        st.plotly_chart(
-            style_chart(fig),
-            use_container_width=True
-        )
-
-    with col2:
-
-        st.subheader("Missing Values")
-
-        missing = df.isnull().sum()
-
-        missing = missing[missing > 0]
-
-        if not missing.empty:
-
-            missing_df = missing.reset_index()
-
-            missing_df.columns = ["Column", "Missing Values"]
-
-            fig = px.bar(
-                missing_df,
-                x="Column",
-                y="Missing Values",
-                color_discrete_sequence=["#2563EB"],
-                title="Missing Values by Column"
-            )
-
-            st.plotly_chart(
-                style_chart(fig),
-                use_container_width=True
-            )
-
-        else:
-
-            st.success("Your dataset has no missing values!")
 
 
 # ============================================
@@ -1591,7 +2031,7 @@ elif page == "Data Quality":
                 word in col_name
                 for word in [
                     "age", "salary", "price",
-                    "amount", "revenue", "quantity"
+                    "amount", "revenue", "quantity", "income"
                 ]
             ) and pd.api.types.is_numeric_dtype(quality_df[col]):
 
@@ -1665,10 +2105,12 @@ elif page == "Data Quality":
 
         with col3:
             st.metric(
-                "Consistency",
+                "Consistency Indicator",
                 f"{consistency:.1f}%"
             )
-
+            st.caption(
+                "Internal score based on duplicates and whitespace issues."
+            )
         with col4:
             st.metric(
                 "Missing Values",
@@ -1909,23 +2351,39 @@ elif page == "PDF Report":
 
     st.subheader("Report Preview")
 
-    col1, col2, col3 = st.columns(3)
+    total_rows = df.shape[0]
+    total_columns = df.shape[1]
+    total_cells = df.size
+
+    missing_values = int(df.isnull().sum().sum())
+    duplicate_rows = int(df.duplicated().sum())
+
+    completeness = (
+        (total_cells - missing_values) / total_cells * 100
+        if total_cells > 0 else 0
+    )
+
+    col1, col2, col3, col4 = st.columns(4)
 
     col1.metric(
-        "Rows",
-        f"{df.shape[0]:,}"
+        "Total Rows",
+        f"{total_rows:,}"
     )
 
     col2.metric(
-        "Columns",
-        df.shape[1]
+        "Total Columns",
+        total_columns
     )
 
     col3.metric(
-        "Missing Values",
-        int(df.isnull().sum().sum())
+        "Completeness",
+        f"{completeness:.1f}%"
     )
 
+    col4.metric(
+        "Duplicate Rows",
+        duplicate_rows
+    )
     st.divider()
 
     st.subheader("Statistical Summary")
@@ -1955,6 +2413,136 @@ elif page == "PDF Report":
         except Exception as error:
 
             st.error(f"Could not generate PDF: {error}")
+
+elif page == "About":
+
+    st.title("🚀 About DataVision")
+
+    st.caption(
+        "A modern platform for data analysis, visualization and quality assessment."
+    )
+
+    st.divider()
+
+    # PROJECT OVERVIEW
+    st.subheader("📊 Project Overview")
+
+    st.markdown("""
+    **DataVision** is an interactive data analytics platform
+    designed to help users explore, analyze, clean and
+    visualize their datasets.
+
+    The platform transforms raw data into meaningful insights
+    through an intuitive and user-friendly interface.
+    """)
+
+    st.divider()
+
+    # MAIN FEATURES
+    st.subheader("✨ Main Features")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        st.markdown("### 📈 Data Analysis")
+
+        st.write("""
+        - Interactive Dashboard
+        - Descriptive Statistics
+        - Correlation Analysis
+        - Data Exploration
+        """)
+
+        st.markdown("### 🧹 Data Cleaning")
+
+        st.write("""
+        - Missing Values Handling
+        - Duplicate Removal
+        - Data Cleaning Preview
+        - Cleaned Dataset Export
+        """)
+
+    with col2:
+
+        st.markdown("### 📊 Data Visualization")
+
+        st.write("""
+        - Histogram
+        - Bar Chart
+        - Pie Chart
+        - Line Chart
+        - Scatter Plot
+        - Box Plot
+        """)
+
+        st.markdown("### 🔍 Data Quality")
+
+        st.write("""
+        - Completeness Analysis
+        - Validity Checks
+        - Consistency Analysis
+        - Quality Alerts
+        - Column Quality Report
+        """)
+
+    st.divider()
+
+    # TECHNOLOGIES
+    st.subheader("🛠️ Technologies Used")
+
+    technologies = [
+        "Python",
+        "Streamlit",
+        "Pandas",
+        "NumPy",
+        "Plotly",
+        "ReportLab"
+    ]
+
+    cols = st.columns(3)
+
+    for i, tech in enumerate(technologies):
+
+        with cols[i % 3]:
+            st.info(f"**{tech}**")
+
+    st.divider()
+
+    # PROJECT LINKS
+    st.subheader("🔗 Project Resources")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        st.link_button(
+            "🌐 GitHub Repository",
+            "https://github.com/17DOS3/DataVision",
+            use_container_width=True
+        )
+
+    with col2:
+
+        st.link_button(
+            "🚀 Live Demo",
+            "https://datavision-ufmezbl8zywa62ym4sf99f.streamlit.app/",
+            use_container_width=True
+        )
+
+    st.divider()
+
+    # FOOTER
+    st.markdown(
+        """
+        <div style="text-align:center; padding:20px; color:#64748B;">
+            <h4>DataVision</h4>
+            <p>Turning Data into Insights.</p>
+            <small>Data Analytics & Visualization Project</small>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 
 # ============================================
