@@ -28,13 +28,31 @@ Try DataVision online:
 ## 📸 Screenshots
 
 ### Dashboard
-![DataVision Dashboard](Screenshots/Dashboard.png.png)
-
-### Data Visualization
-![Data Visualization](Screenshots/Visualisation.png.png)
+![DataVision Dashboard](assets/screenshots/dashboard.png)
 
 ### Data Quality
-![Data Quality](Screenshots/data_quality.png.png)
+![Data Quality](assets/screenshots/data_quality.png)
+
+### Data Visualization
+![Data Visualization](assets/screenshots/visualization.png)
+
+## 📁 Project Structure
+
+```text
+DataVision/
+├── app.py
+├── convert.py
+├── requirements.txt
+├── README.md
+├── .gitignore
+├── data/
+│   ├── datasetpractice.csv
+│   └── datasetpractice.xlsx
+└── assets/
+    └── screenshots/
+        ├── dashboard.png
+        ├── data_quality.png
+        └── visualization.png
 
 ## 🛠️ Technologies
 

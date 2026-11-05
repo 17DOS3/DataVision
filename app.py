@@ -417,10 +417,43 @@ def load_dataset(uploaded_file):
 
     return None
 
+def add_page_number(canvas, doc):
+    canvas.saveState()
+
+    page_width, page_height = A4
+
+    # Footer line
+    canvas.setStrokeColor(colors.HexColor("#E2E8F0"))
+    canvas.line(
+        20 * mm,
+        15 * mm,
+        page_width - 20 * mm,
+        15 * mm
+    )
+
+    # Footer text
+    canvas.setFont("Helvetica", 8)
+    canvas.setFillColor(colors.HexColor("#64748B"))
+
+    canvas.drawString(
+        20 * mm,
+        10 * mm,
+        "DataVision | Data Analytics Platform"
+    )
+
+    canvas.drawRightString(
+        page_width - 20 * mm,
+        10 * mm,
+        f"Page {doc.page}"
+    )
+
+    canvas.restoreState()
 
 def create_pdf_report(dataframe):
 
     buffer = BytesIO()
+
+    
 
     document = SimpleDocTemplate(
         buffer,
@@ -963,6 +996,7 @@ def create_pdf_report(dataframe):
             )
         )
 
+    
     # FOOTER
     def add_footer(canvas, doc):
 
@@ -980,6 +1014,7 @@ def create_pdf_report(dataframe):
         )
 
         canvas.setFont("Helvetica", 8)
+
         canvas.setFillColor(
             colors.HexColor("#64748B")
         )
@@ -998,6 +1033,7 @@ def create_pdf_report(dataframe):
 
         canvas.restoreState()
 
+    # BUILD PDF
     document.build(
         elements,
         onFirstPage=add_footer,
@@ -1006,7 +1042,8 @@ def create_pdf_report(dataframe):
 
     buffer.seek(0)
 
-    return buffer
+    return buffer.getvalue()
+
 
 
 # ============================================
@@ -2492,13 +2529,15 @@ elif page == "About":
     st.subheader("🛠️ Technologies Used")
 
     technologies = [
-        "Python",
-        "Streamlit",
-        "Pandas",
-        "NumPy",
-        "Plotly",
-        "ReportLab"
-    ]
+    "Python",
+    "Streamlit",
+    "Pandas",
+    "NumPy",
+    "Plotly",
+    "Matplotlib",
+    "ReportLab",
+    "OpenPyXL"
+]
 
     cols = st.columns(3)
 
@@ -2531,6 +2570,39 @@ elif page == "About":
         )
 
     st.divider()
+
+    # PROJECT HIGHLIGHTS
+    st.subheader("⭐ Project Highlights")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.metric("Core Modules", "6+")
+
+    with col2:
+        st.metric("Chart Types", "6")
+
+    with col3:
+        st.metric("Export Format", "PDF / CSV / Excel")
+
+    # DEVELOPER PROFILE
+    st.subheader("👨‍💻 Developer")
+
+    with st.container(border=True):
+
+        st.markdown("### DataVision Developer")
+
+        st.write(
+            "Computer Science & Big Data enthusiast "
+            "interested in Data Analytics, Python "
+            "and Data Visualization."
+        )
+
+        st.caption(
+            "Building practical solutions that transform "
+            "data into meaningful insights."
+        )
+
 
     # FOOTER
     st.markdown(

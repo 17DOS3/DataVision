@@ -1,0 +1,17 @@
+Customer_ID,Name,Email,City,Age,Monthly_Income_MAD,Signup_Date,Status
+1001,Amine,amine@gmail.com,Casablanca,25,5200,2026-01-05,Completed
+1002,Sara,sara@gmail.com,Rabat,29,6800,2026-01-07,Completed
+1003,Youssef,,Marrakech,31,7500,2026-01-09,Pending
+1004,Nadia,nadia@gmail.com,Fes,,6100,2026-01-10,Completed
+1005,Omar,omar@gmail.com,CASABLANCA,27,,10/01/2026,Pending
+1006,Lina,lina@gmail.com,Tangier,24,4900,,Cancelled
+1007,Hamza,hamza@gmail.com,Rabat,35,8200,2026-01-13,Completed
+1008,Meryem,meryem@gmail.com,Marrakech,28,5700,2026-01-14,
+1009,Anas,anas@gmail.com,Agadir,22,4300,2026-01-15,Completed
+1010,Salma,salma@gmail.com,FES,30,7100,2026-01-16,Pending
+1002,Sara,sara@gmail.com,Rabat,29,6800,2026-01-07,Completed
+1016,  Hiba  ,hiba@gmail.com, casablanca ,26,5600,2026-01-22,completed
+1017,Mehdi,mehdi.gmail.com,Oujda,-3,6200,2026-01-23,Pending
+1018,Zineb,zineb@gmail.com,Kenitra,150,6400,2026-13-40,Completed
+1019,Bilal,bilal@gmail.com,Rabat,28,-500,2026-01-25,Pending
+1020,Kawtar,kawtar@gmail.com,Agadir,32,7300,2026-01-26,Unknown

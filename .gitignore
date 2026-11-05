@@ -1,10 +1,31 @@
+# Python
 __pycache__/
 *.py[cod]
-.venv/
+*.pyo
+
+# Virtual environments
 venv/
-.env
-.streamlit/secrets.toml
-*.xlsx
-*.csv
-.DS_Store
+.venv/
+env/
+
+# IDE
 .vscode/
+
+# Streamlit secrets
+.streamlit/secrets.toml
+
+# Environment variables
+.env
+.env.*
+
+# Operating system
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Generated files
+*.log
+*.tmp
+
+# Generated PDF reports
+DataVision_Report.pdf
