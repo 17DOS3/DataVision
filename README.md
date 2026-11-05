@@ -28,13 +28,13 @@ Try DataVision online:
 ## 📸 Screenshots
 
 ### Dashboard
-![DataVision Dashboard](screenshots/dashboard.png)
+![DataVision Dashboard](Screenshots/dashboard.png)
 
 ### Data Visualization
-![Data Visualization](screenshots/visualization.png)
+![Data Visualization](Screenshots/visualization.png)
 
 ### Data Quality
-![Data Quality](screenshots/data_quality.png)
+![Data Quality](Screenshots/data_quality.png)
 
 ## 🛠️ Technologies
 
