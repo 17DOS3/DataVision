@@ -25,6 +25,17 @@ Try DataVision online:
 - 📄 PDF report generation
 - ⬇️ Download cleaned datasets and reports
 
+## 📸 Screenshots
+
+### Dashboard
+![DataVision Dashboard](screenshots/dashboard.png)
+
+### Data Visualization
+![Data Visualization](screenshots/visualization.png)
+
+### Data Quality
+![Data Quality](screenshots/data_quality.png)
+
 ## 🛠️ Technologies
 
 - Python
