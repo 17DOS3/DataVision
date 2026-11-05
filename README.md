@@ -4,6 +4,15 @@ DataVision is an interactive data analytics platform built with Python and Strea
 It allows users to upload datasets, explore data, perform statistical analysis,
 visualize information, clean datasets, and generate reports.
 
+## 🌐 Live Demo
+
+Try DataVision online:
+[Open DataVision](https://datavision-ufmezbl8zywa62ym4sf99f.streamlit.app/)
+
+## 💻 GitHub Repository
+
+[View Source Code](https://github.com/17DOS3/DataVision)
+
 ## 🚀 Features
 
 - 📁 CSV and Excel file upload
