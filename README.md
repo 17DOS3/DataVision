@@ -37,7 +37,15 @@ Try DataVision online:
 
 ## ⚙️ Installation
 
-Clone the repository:
+git clone https://github.com/17DOS3/DataVision.git
+cd DataVision
+pip install -r requirements.txt
+streamlit run app.py
 
-```bash
-git clone YOUR_GITHUB_REPOSITORY_URL
+## 👨‍💻 Author
+
+**Ayoub Salim El-Antaki**
+
+Computer Science | Big Data
+
+Morocco
